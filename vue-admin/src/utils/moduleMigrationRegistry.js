@@ -1,0 +1,18 @@
+export const moduleMigrationRegistry = [
+  { module: 'category', risk: 'low', route: '/goods/category', permission: 'category.index' },
+  { module: 'department', risk: 'low', route: '/system/departments', permission: 'department.index' },
+  { module: 'post', risk: 'low', route: '/system/roles', permission: 'post.index' },
+  { module: 'privilege', risk: 'low', route: '/system/permissions', permission: 'privilege.index' },
+  { module: 'user', risk: 'low', route: '/system/users', permission: 'user.index' },
+  { module: 'log', risk: 'low', route: '/system/logs', permission: 'log.index' },
+  { module: 'goods', risk: 'medium', route: '/goods/list', permission: 'goods.index' },
+  { module: 'supplier', risk: 'medium', route: '/suppliers/list', permission: 'supplier.index' },
+  { module: 'school', risk: 'medium', route: '/schools/list', permission: 'school.index' },
+  { module: 'school_canteen', risk: 'medium', route: '/schools/canteens', permission: 'school_canteen.index' },
+  { module: 'order', risk: 'high', route: '/orders/list', permission: 'order.index' },
+  { module: 'backorder', risk: 'high', route: '/backorder/list', permission: 'backorder.index' },
+  { module: 'receivable', risk: 'high', route: '/receivable/receipt', permission: 'receivable.receipt' },
+  { module: 'bidding', risk: 'high', route: '/bidding/histories', permission: 'bidding.index' },
+  { module: 'approve', risk: 'high', route: '/approve/comment', permission: 'approve.comment' },
+  { module: 'jiagewang', risk: 'high', route: '/jiagewang/list', permission: 'jiagewang.index' },
+]

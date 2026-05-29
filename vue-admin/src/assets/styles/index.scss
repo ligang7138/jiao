@@ -1,0 +1,109 @@
+// 全局样式
+@import './variables.scss';
+@import './reset.scss';
+
+// 主题色 - 与旧系统一致
+$theme-color: #dc3251;
+
+// 滚动条样式 - 与旧系统一致
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $theme-color;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: darken($theme-color, 10%);
+}
+
+// NProgress 样式
+#nprogress {
+  .bar {
+    background-color: $theme-color !important;
+  }
+}
+
+// 通用样式
+.app-container {
+  padding: 20px;
+}
+
+.filter-container {
+  margin-bottom: 20px;
+}
+
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+// 表格样式
+.el-table {
+  .el-table__header-wrapper {
+    th {
+      background-color: #f5f7fa;
+    }
+  }
+}
+
+// 表单样式
+.el-form {
+  .el-form-item {
+    margin-bottom: 18px;
+  }
+}
+
+// 对话框样式
+.el-dialog {
+  .el-dialog__header {
+    border-bottom: 1px solid #eee;
+  }
+
+  .el-dialog__footer {
+    border-top: 1px solid #eee;
+  }
+}
+
+// 分页样式 - 与旧系统一致
+#page a {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 5px 9px;
+  background: #fff;
+  text-decoration: none;
+  color: #808080;
+  font-size: 13px;
+  line-height: 26px;
+  border-radius: 2px;
+  height: 26px;
+
+  &:hover {
+    border: 1px solid $theme-color;
+  }
+
+  &.cur {
+    border: none;
+    background: $theme-color;
+    color: #fff;
+  }
+}
+
+// 状态样式 - 与旧系统一致
+.yes {
+  color: #1bbc9d;
+  cursor: default;
+}
+
+.no {
+  color: #9ea3a7;
+  cursor: default;
+}

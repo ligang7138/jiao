@@ -1,0 +1,93 @@
+services:
+  # PHP + Nginx 服务
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel-api-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+    ports:
+      - "8001:80"
+    networks:
+      - laravel-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=jiaowei_daxing
+      - DB_USERNAME=root
+      - DB_PASSWORD=root123456
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  # MySQL 服务
+  mysql:
+    image: mysql:8.0
+    container_name: laravel-api-mysql
+    restart: unless-stopped
+    ports:
+      - "33061:3306"
+    networks:
+      - laravel-network
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: jiaowei_daxing
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-uroot",
+          "-proot123456",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis 服务
+  redis:
+    image: redis:7-alpine
+    container_name: laravel-api-redis
+    restart: unless-stopped
+    ports:
+      - "63791:6379"
+    networks:
+      - laravel-network
+    volumes:
+      - redis-data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  laravel-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local

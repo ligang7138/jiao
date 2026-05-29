@@ -1,0 +1,49 @@
+// CSS 变量 - 与旧系统主题色保持一致
+:root {
+  // 主题色 - 使用旧系统的红色主题 #dc3251
+  --el-color-primary: #dc3251;
+  --el-color-primary-light-3: #e85a73;
+  --el-color-primary-light-5: #f08a9b;
+  --el-color-primary-light-7: #f7b5c2;
+  --el-color-primary-light-8: #fbd0da;
+  --el-color-primary-light-9: #fdeef2;
+  --el-color-primary-dark-2: #b82843;
+
+  // 侧边栏宽度 - 与旧系统一致 170px
+  --sidebar-width: 170px;
+  --sidebar-collapsed-width: 54px;
+
+  // 头部高度
+  --header-height: 50px;
+
+  // 标签页高度
+  --tagsview-height: 34px;
+
+  // 侧边栏背景色 - 与旧系统一致 #222d32
+  --sidebar-bg: #222d32;
+  --sidebar-menu-text: #b8c7ce;
+  --sidebar-menu-active-text: #fff;
+}
+
+// 颜色变量 - 主题色改为旧系统红色
+$primary-color: #dc3251;
+$success-color: #67c23a;
+$warning-color: #e6a23c;
+$danger-color: #f56c6c;
+$info-color: #909399;
+
+// 文字颜色
+$text-primary: #303133;
+$text-regular: #606266;
+$text-secondary: #909399;
+$text-placeholder: #c0c4cc;
+
+// 边框颜色
+$border-color: #dcdfe6;
+$border-color-light: #e4e7ed;
+$border-color-lighter: #ebeef5;
+
+// 背景色
+$bg-color: #ffffff;
+$bg-color-page: #f2f3f5;
+$bg-color-overlay: rgba(0, 0, 0, 0.5);

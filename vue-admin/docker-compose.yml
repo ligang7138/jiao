@@ -1,0 +1,16 @@
+services:
+  vue-admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vue-admin
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    networks:
+      - laravel-network
+
+networks:
+  laravel-network:
+    external: true
+    name: laravel-api_laravel-network
