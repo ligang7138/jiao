@@ -4,7 +4,7 @@
 const PATH_ROUTE_MAP = {
   'home.index': '/dashboard',
   'goods.index': '/goods/list',
-  'goods.unit': '/goods/list',
+  'goods.unit': '/goods/unit',
   'goods.report': '/goods/list',
   'category.index': '/goods/category',
   'order.index': '/orders/list',
@@ -21,9 +21,6 @@ const PATH_ROUTE_MAP = {
   'bidding.discount': '/bidding/discounts',
   'backorder.index': '/backorder/list',
   'backorder.type': '/backorder/type',
-  'jiagewang.index': '/jiagewang/list',
-  'jiagewang.match': '/jiagewang/match',
-  'jiagewang.import': '/jiagewang/import',
   'receivable.receipt': '/receivable/receipt',
   'receivable.account': '/receivable/account',
   'receivable.order': '/receivable/receipt',

@@ -26,12 +26,11 @@ class CheckAdminPermission
         }
 
         $legacyPermission = LegacyPermission::resolveByRouteName($request->route()?->getName());
-        if (!$legacyPermission) {
+        if ($legacyPermission === null) {
             return $next($request);
         }
 
-        $permissions = $user->privilege ?? $user->permissions ?? [];
-        if (!is_array($permissions) || !in_array($legacyPermission, $permissions, true)) {
+        if (!LegacyPermission::userHasPermission($user, $legacyPermission)) {
             return ResponseHelper::error(ErrorCode::LEGACY_PERMISSION_DENIED, '对不起，您没有操作权限！');
         }
 

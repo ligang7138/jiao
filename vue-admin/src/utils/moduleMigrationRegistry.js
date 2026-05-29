@@ -1,5 +1,6 @@
 export const moduleMigrationRegistry = [
   { module: 'category', risk: 'low', route: '/goods/category', permission: 'category.index' },
+  { module: 'goods-unit', risk: 'low', route: '/goods/unit', permission: 'goods.unit' },
   { module: 'department', risk: 'low', route: '/system/departments', permission: 'department.index' },
   { module: 'post', risk: 'low', route: '/system/roles', permission: 'post.index' },
   { module: 'privilege', risk: 'low', route: '/system/permissions', permission: 'privilege.index' },

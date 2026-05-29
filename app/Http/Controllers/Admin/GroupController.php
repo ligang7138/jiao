@@ -50,9 +50,9 @@ class GroupController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:50',
+            'name' => 'required|string|max:10',
             'pid' => 'nullable|integer|min:0',
-            'code' => 'nullable|string|max:50',
+            'code' => 'nullable|string|max:10',
             'status' => 'nullable|integer|in:0,1',
         ]);
 
@@ -70,9 +70,9 @@ class GroupController extends Controller
     public function update(Request $request, int $id)
     {
         $data = $request->validate([
-            'name' => 'sometimes|required|string|max:50',
+            'name' => 'sometimes|required|string|max:10',
             'pid' => 'nullable|integer|min:0',
-            'code' => 'nullable|string|max:50',
+            'code' => 'nullable|string|max:10',
             'status' => 'nullable|integer|in:0,1',
         ]);
 

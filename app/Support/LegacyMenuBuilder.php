@@ -117,6 +117,9 @@ class LegacyMenuBuilder
                 ->orderBy('sort')
                 ->get()
                 ->filter(function ($item) use ($privilegePaths) {
+                    if (self::isHiddenMenu($item->path)) {
+                        return false;
+                    }
                     if (empty($item->path)) {
                         return true;
                     }
@@ -142,6 +145,24 @@ class LegacyMenuBuilder
         return $rows;
     }
 
+    /**
+     * 重构后隐藏的旧模块菜单 path
+     */
+    private static function hiddenMenuPaths(): array
+    {
+        return [
+            'jiagewang.index',
+            'jiagewang.match',
+            'jiagewang.import',
+            'jiagewang.history',
+        ];
+    }
+
+    private static function isHiddenMenu(?string $path): bool
+    {
+        return $path && in_array($path, self::hiddenMenuPaths(), true);
+    }
+
     private static function buildFullMenu(): array
     {
         $modules = DB::table('system_menu')
@@ -158,6 +179,7 @@ class LegacyMenuBuilder
                 ->where('status', 1)
                 ->orderBy('sort')
                 ->get()
+                ->filter(fn ($item) => !self::isHiddenMenu($item->path))
                 ->map(fn ($item) => self::formatMenuItem($item))
                 ->filter(fn ($item) => !empty($item['path']))
                 ->values()

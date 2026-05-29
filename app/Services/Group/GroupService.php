@@ -5,6 +5,7 @@ namespace App\Services\Group;
 use App\Models\Group\Group;
 use App\Models\School\Canteen;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * 分组管理服务层（对齐旧 group/ajax.php 业务逻辑）
@@ -102,6 +103,8 @@ class GroupService
             throw new \InvalidArgumentException('请输入分组名称');
         }
 
+        $this->assertValidNameAndCode($name, $code);
+
         if (Group::where('name', $name)->exists()) {
             throw new \InvalidArgumentException('分组名称已存在');
         }
@@ -132,6 +135,8 @@ class GroupService
         if ($pid === $id) {
             throw new \InvalidArgumentException('父分组不能是自己');
         }
+
+        $this->assertValidNameAndCode($name, $code);
 
         if (Group::where('name', $name)->where('id', '<>', $id)->exists()) {
             throw new \InvalidArgumentException('分组名称已存在');
@@ -213,11 +218,10 @@ class GroupService
             throw new \InvalidArgumentException('该食堂已属于其他分组');
         }
 
-        $canteen->update([
+        $canteen->update($this->canteenUpdateAttributes([
             'group_id' => $groupId,
             'is_audit' => 0,
-            'update_time' => time(),
-        ]);
+        ]));
     }
 
     public function removeCanteen(int $groupId, int $canteenId): void
@@ -230,11 +234,10 @@ class GroupService
             throw new \InvalidArgumentException('食堂不存在');
         }
 
-        $canteen->update([
+        $canteen->update($this->canteenUpdateAttributes([
             'group_id' => 0,
             'is_audit' => 0,
-            'update_time' => time(),
-        ]);
+        ]));
     }
 
     public function setAudit(int $groupId, int $canteenId): void
@@ -243,7 +246,7 @@ class GroupService
             Canteen::where('group_id', $groupId)->update(['is_audit' => 0]);
             Canteen::where('group_id', $groupId)
                 ->where('id', $canteenId)
-                ->update(['is_audit' => 1, 'update_time' => time()]);
+                ->update($this->canteenUpdateAttributes(['is_audit' => 1]));
         });
     }
 
@@ -251,6 +254,30 @@ class GroupService
     {
         Canteen::where('id', $canteenId)
             ->where('group_id', $groupId)
-            ->update(['is_audit' => 0, 'update_time' => time()]);
+            ->update($this->canteenUpdateAttributes(['is_audit' => 0]));
+    }
+
+    private function assertValidNameAndCode(string $name, string $code): void
+    {
+        if (mb_strlen($name) > 10) {
+            throw new \InvalidArgumentException('分组名称不能超过10个字符');
+        }
+
+        if (mb_strlen($code) > 10) {
+            throw new \InvalidArgumentException('分组编码不能超过10个字符');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private function canteenUpdateAttributes(array $attributes): array
+    {
+        if (Schema::hasColumn('school_canteen', 'update_time')) {
+            $attributes['update_time'] = time();
+        }
+
+        return $attributes;
     }
 }

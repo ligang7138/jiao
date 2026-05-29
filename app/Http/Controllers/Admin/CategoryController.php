@@ -41,7 +41,7 @@ class CategoryController extends Controller
      */
     public function index(Request $request)
     {
-        $params = $request->only(['keyword', 'is_active']);
+        $params = $request->only(['keyword', 'name', 'pid', 'parent_id', 'status', 'page', 'page_size']);
 
         $list = $this->categoryService->getList($params);
 
@@ -59,8 +59,10 @@ class CategoryController extends Controller
         $data = $request->validated();
 
         // 默认父级为0（顶级分类）
-        if (!isset($data['parent_id'])) {
-            $data['parent_id'] = 0;
+        if (!isset($data['pid']) && !isset($data['parent_id'])) {
+            $data['pid'] = 0;
+        } elseif (!isset($data['pid'])) {
+            $data['pid'] = (int) ($data['parent_id'] ?? 0);
         }
 
         try {
@@ -69,9 +71,11 @@ class CategoryController extends Controller
             return ResponseHelper::success([
                 'id' => $category->id,
                 'name' => $category->name,
-            ], '分类创建成功');
+            ], '新增成功');
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::error(40009, $e->getMessage());
         } catch (\Exception $e) {
-            return ResponseHelper::error('分类创建失败: ' . $e->getMessage());
+            return ResponseHelper::error('新增失败', 40009);
         }
     }
 
@@ -108,9 +112,11 @@ class CategoryController extends Controller
 
             return ResponseHelper::success([
                 'id' => $category->id,
-            ], '分类更新成功');
+            ], '编辑成功');
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::error(40009, $e->getMessage());
         } catch (\Exception $e) {
-            return ResponseHelper::error('分类更新失败: ' . $e->getMessage());
+            return ResponseHelper::error('编辑失败' . $e->getMessage(), 40009);
         }
     }
 
@@ -194,19 +200,21 @@ class CategoryController extends Controller
     {
         $floatRateCap = $request->input('float_rate_cap');
 
-        if (!is_numeric($floatRateCap) || $floatRateCap < 0 || $floatRateCap > 1) {
-            return ResponseHelper::error('浮动率上限必须在0-1之间');
+        if (!is_numeric($floatRateCap) || $floatRateCap < 0 || $floatRateCap > 100) {
+            return ResponseHelper::error(40001, '请输入有效的浮动率上限(0-100)');
         }
 
         try {
-            $category = $this->categoryService->update($id, ['float_rate_cap' => $floatRateCap]);
+            $category = $this->categoryService->setFloatRateCap($id, (float) $floatRateCap);
 
             return ResponseHelper::success([
                 'id' => $category->id,
                 'float_rate_cap' => $category->float_rate_cap,
-            ], '浮动率上限设置成功');
+            ], '设置成功');
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::error(40001, $e->getMessage());
         } catch (\Exception $e) {
-            return ResponseHelper::error('设置失败: ' . $e->getMessage());
+            return ResponseHelper::error(40009, '设置失败');
         }
     }
 }

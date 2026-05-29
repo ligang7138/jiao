@@ -31,12 +31,12 @@ class GoodsController extends Controller
     {
         $params = $request->only([
             'keyword',
-            'cate_id',
+            'name',
+            'pid',
+            'parent_id',
             'status',
             'page',
             'page_size',
-            'sort_field',
-            'sort_order',
         ]);
 
         $result = $this->goodsService->getList($params);
@@ -60,9 +60,11 @@ class GoodsController extends Controller
             return ResponseHelper::success([
                 'id' => $goods->id,
                 'goods_name' => $goods->goods_name,
-            ], '商品创建成功');
+            ], '新增成功');
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::error(40001, $e->getMessage());
         } catch (\Exception $e) {
-            return ResponseHelper::error('商品创建失败: ' . $e->getMessage());
+            return ResponseHelper::error(40009, '新增失败:' . $e->getMessage());
         }
     }
 
@@ -99,9 +101,11 @@ class GoodsController extends Controller
 
             return ResponseHelper::success([
                 'id' => $goods->id,
-            ], '商品更新成功');
+            ], '编辑成功');
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::error(40001, $e->getMessage());
         } catch (\Exception $e) {
-            return ResponseHelper::error('商品更新失败: ' . $e->getMessage());
+            return ResponseHelper::error(40009, '编辑失败' . $e->getMessage());
         }
     }
 
@@ -206,9 +210,11 @@ class GoodsController extends Controller
             return ResponseHelper::success([
                 'id' => $goods->id,
                 'status' => $goods->status,
-            ], '商品上架成功');
+            ], '上架成功');
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::error(40001, $e->getMessage());
         } catch (\Exception $e) {
-            return ResponseHelper::error('商品上架失败: ' . $e->getMessage());
+            return ResponseHelper::error(40009, '上架失败');
         }
     }
 
@@ -221,17 +227,25 @@ class GoodsController extends Controller
      */
     public function unpublish(Request $request, int $id)
     {
-        $downType = $request->input('down_type', 1);
+        $downType = (int) $request->input('down_type', 1);
+        $reason = trim((string) $request->input('reason', ''));
 
         try {
-            $goods = $this->goodsService->unpublish($id, $downType);
+            $goods = $this->goodsService->unpublish($id, $downType, $reason);
+
+            $msg = $downType === 1
+                ? '下架成功'
+                : '预下架设置成功，将于' . date('Y-m-d H:i:s', (int) $goods->schedule_down_time) . '自动下架';
 
             return ResponseHelper::success([
                 'id' => $goods->id,
                 'status' => $goods->status,
-            ], '商品下架成功');
+                'schedule_down_time' => $goods->schedule_down_time,
+            ], $msg);
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::error(40001, $e->getMessage());
         } catch (\Exception $e) {
-            return ResponseHelper::error('商品下架失败: ' . $e->getMessage());
+            return ResponseHelper::error(40009, '操作失败');
         }
     }
 

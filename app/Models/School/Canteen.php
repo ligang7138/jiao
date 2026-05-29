@@ -25,6 +25,8 @@ class Canteen extends Model
 
     protected $fillable = [
         'school_id',
+        'username',
+        'password',
         'name',
         'canteen_sn',
         'canteen_type',

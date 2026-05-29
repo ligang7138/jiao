@@ -2,143 +2,214 @@
 
 namespace App\Services\Goods;
 
-use App\Models\Goods\Goods;
 use App\Models\Goods\Category;
+use App\Models\Goods\Goods;
+use App\Models\Goods\GoodsJiagewang;
+use App\Models\Goods\GoodsStatusLog;
+use App\Models\Goods\GoodsUnit;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
- * 商品服务层
+ * 商品服务层（对齐旧 admin/goods 业务逻辑）
  */
 class GoodsService
 {
-    /**
-     * 获取商品列表
-     */
     public function getList(array $params): array
     {
-        $page = $params['page'] ?? 1;
-        $pageSize = $params['page_size'] ?? 20;
+        $page = max(1, (int) ($params['page'] ?? 1));
+        $pageSize = max(1, min(100, (int) ($params['page_size'] ?? 20)));
 
-        $query = Goods::with(['category', 'subCategory'])
-            ->search($params['keyword'] ?? null)
-            ->byCategory($params['cate_id'] ?? null)
-            ->byStatus($params['status'] ?? null);
+        $query = DB::table('goods as g')
+            ->leftJoin('goods_jiagewang as gj', 'gj.goods_id', '=', 'g.id')
+            ->select('g.*', 'gj.price', 'gj.white_price');
 
-        // 排序
-        $sortField = $params['sort_field'] ?? 'id';
-        $sortOrder = $params['sort_order'] ?? 'desc';
-        $query->orderBy($sortField, $sortOrder);
-        
-        $total = $query->count();
-        $list = $query->offset(($page - 1) * $pageSize)
+        $goodsSn = trim((string) ($params['goods_sn'] ?? ''));
+        if ($goodsSn !== '') {
+            $query->where('g.goods_sn', $goodsSn);
+        } else {
+            if ($goodsName = trim((string) ($params['goods_name'] ?? $params['keyword'] ?? ''))) {
+                $query->where('g.goods_name', 'like', "%{$goodsName}%");
+            }
+            if (!empty($params['cate_id'])) {
+                $query->where('g.cate_id', (int) $params['cate_id']);
+            }
+            if (!empty($params['scate_id'])) {
+                $query->where('g.scate_id', (int) $params['scate_id']);
+            }
+            if (($params['attr'] ?? '') !== '' && $params['attr'] !== null) {
+                $query->where('g.attr', (int) $params['attr']);
+            }
+            if (($params['level'] ?? '') !== '' && $params['level'] !== null) {
+                $query->where('g.level', (int) $params['level']);
+            }
+            if (!empty($params['limit_price'])) {
+                $query->whereNull('gj.price');
+            }
+            if (($params['status'] ?? '') !== '' && $params['status'] !== null) {
+                $query->where('g.status', (int) $params['status']);
+            }
+            if (($params['goods_type'] ?? '') !== '' && $params['goods_type'] !== null) {
+                $query->where('g.goods_type', (int) $params['goods_type']);
+            }
+            if (($params['goods_channel'] ?? '') !== '' && $params['goods_channel'] !== null) {
+                $query->where('g.goods_channel', (int) $params['goods_channel']);
+            }
+            if (!empty($params['source'])) {
+                $query->where('g.source', (int) $params['source']);
+            }
+        }
+
+        $total = (clone $query)->count();
+        $rows = $query->orderByDesc('g.id')
+            ->offset(($page - 1) * $pageSize)
             ->limit($pageSize)
             ->get();
 
+        $floatRateCaps = Category::where('pid', 0)->pluck('float_rate_cap', 'id')->all();
+
+        $list = $rows->map(function ($row) use ($floatRateCaps) {
+            $item = (array) $row;
+            $floatRateCap = $floatRateCaps[$item['cate_id']] ?? 0.13;
+            $basePrice = ((int) ($item['goods_channel'] ?? 0) === 1)
+                ? (float) ($item['white_price'] ?? 0)
+                : (float) ($item['price'] ?? 0);
+
+            $item['limit_price'] = $floatRateCap
+                ? $this->calcLimitPrice($basePrice, (float) $floatRateCap)
+                : 0;
+
+            return $item;
+        })->values()->all();
+
         return [
-            'list' => $list->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'goods_sn' => $item->goods_sn,
-                    'goods_name' => $item->goods_name,
-                    'cate_id' => $item->cate_id,
-                    'cate_name' => $item->category?->name,
-                    'scate_id' => $item->scate_id,
-                    'scate_name' => $item->subCategory?->name,
-                    'unit' => $item->unit,
-                    'spec' => $item->spec,
-                    'discount_rate' => $item->discount_rate,
-                    'status' => $item->status,
-                    'status_text' => $item->getStatusText(),
-                    'slogo' => $item->slogo,
-                    'created_at' => $item->created_at?->format('Y-m-d H:i:s'),
-                ];
-            }),
+            'list' => $list,
             'total' => $total,
             'page' => $page,
             'page_size' => $pageSize,
         ];
     }
 
-    /**
-     * 创建商品
-     */
     public function create(array $data): Goods
     {
-        // 生成商品编码
-        if (!isset($data['goods_sn'])) {
-            $data['goods_sn'] = $this->generateGoodsSn();
+        $cateId = (int) ($data['cate_id'] ?? 0);
+        $scateId = (int) ($data['scate_id'] ?? 0);
+        $attr = (int) ($data['attr'] ?? 1);
+        $level = (int) ($data['level'] ?? 1);
+
+        if (!in_array($attr, [1, 2, 3], true)) {
+            throw new \InvalidArgumentException('商品属性错误');
+        }
+        if (!in_array($level, [1, 2], true)) {
+            throw new \InvalidArgumentException('商品等级错误');
         }
 
-        // 设置时间戳
-        $data['add_time'] = time();
-        $data['update_time'] = time();
+        $imageList = $data['image_list'] ?? [];
+        if (empty($imageList)) {
+            throw new \InvalidArgumentException('请上传商品图片！');
+        }
 
-        $goods = Goods::create($data);
+        $cate = Category::find($cateId);
+        if (!$cate || $cate->pid != 0) {
+            throw new \InvalidArgumentException('一级分类错误，请重新输入');
+        }
 
-        return $goods;
+        $scate = Category::find($scateId);
+        if (!$scate || $scate->pid != $cateId) {
+            throw new \InvalidArgumentException('二级分类错误，请重新输入');
+        }
+
+        $user = Auth::user();
+        $goodsSn = $this->generateGoodsSn($cateId);
+        $imageList = $this->normalizeImageList($imageList);
+        $detailImageList = $this->normalizeImageList($data['detail_image_list'] ?? []);
+        $logo = $imageList[0] ?? '';
+
+        return DB::transaction(function () use ($data, $cate, $scate, $user, $goodsSn, $imageList, $detailImageList, $logo, $attr, $level) {
+            return Goods::create([
+                'goods_sn' => $goodsSn,
+                'goods_name' => trim((string) $data['goods_name']),
+                'logo' => $logo,
+                'slogo' => $logo,
+                'image_list' => json_encode($imageList, JSON_UNESCAPED_UNICODE),
+                'detail_image_list' => json_encode($detailImageList, JSON_UNESCAPED_UNICODE),
+                'spec' => trim((string) ($data['spec'] ?? '')),
+                'cate_id' => $cate->id,
+                'cate_name' => $cate->name,
+                'scate_id' => $scate->id,
+                'scate_name' => $scate->name,
+                'unit' => trim((string) $data['unit']),
+                'attr' => $attr,
+                'goods_type' => (int) ($data['goods_type'] ?? 0),
+                'goods_channel' => (int) ($data['goods_channel'] ?? 0),
+                'discount_rate' => 0,
+                'level' => $level,
+                'brand' => trim((string) ($data['brand'] ?? '')),
+                'place' => trim((string) ($data['place'] ?? '')),
+                'expire_date' => trim((string) ($data['expire_date'] ?? '')),
+                'remark' => trim((string) ($data['remark'] ?? '')),
+                'status' => Goods::STATUS_OFF,
+                'update_user' => $user?->name ?? '',
+                'add_time' => time(),
+                'update_time' => time(),
+            ]);
+        });
     }
 
-    /**
-     * 更新商品
-     */
     public function update(int $id, array $data): Goods
     {
         $goods = Goods::findOrFail($id);
+        $imageList = $this->normalizeImageList($data['image_list'] ?? json_decode($goods->image_list ?: '[]', true));
+        $detailImageList = $this->normalizeImageList($data['detail_image_list'] ?? json_decode($goods->detail_image_list ?: '[]', true));
+        $logo = $imageList[0] ?? $goods->slogo;
+        $user = Auth::user();
 
-        // 更新时间戳
-        $data['update_time'] = time();
-
-        $goods->update($data);
+        $goods->update([
+            'slogo' => $logo,
+            'remark' => trim((string) ($data['remark'] ?? $goods->remark)),
+            'place' => trim((string) ($data['place'] ?? $goods->place)),
+            'goods_type' => (int) ($data['goods_type'] ?? $goods->goods_type),
+            'image_list' => json_encode($imageList, JSON_UNESCAPED_UNICODE),
+            'detail_image_list' => json_encode($detailImageList, JSON_UNESCAPED_UNICODE),
+            'update_user' => $user?->name ?? '',
+            'update_time' => time(),
+        ]);
 
         return $goods->fresh();
     }
 
-    /**
-     * 删除商品
-     */
     public function delete(int $id): bool
     {
-        $goods = Goods::findOrFail($id);
-
-        return $goods->delete();
+        return (bool) Goods::findOrFail($id)->delete();
     }
 
-    /**
-     * 批量删除商品
-     */
     public function batchDelete(array $ids): int
     {
         return Goods::whereIn('id', $ids)->delete();
     }
 
-    /**
-     * 更改商品状态
-     */
     public function changeStatus(int $id, int $status): Goods
     {
         $goods = Goods::findOrFail($id);
         $goods->status = $status;
+        $goods->update_time = time();
         $goods->save();
 
         return $goods;
     }
 
-    /**
-     * 获取商品详情
-     */
     public function getDetail(int $id): array
     {
-        $goods = Goods::with(['category', 'subCategory'])->findOrFail($id);
+        $goods = Goods::findOrFail($id);
 
         return [
             'id' => $goods->id,
             'goods_sn' => $goods->goods_sn,
             'goods_name' => $goods->goods_name,
             'cate_id' => $goods->cate_id,
-            'cate_name' => $goods->category?->name,
+            'cate_name' => $goods->cate_name,
             'scate_id' => $goods->scate_id,
-            'scate_name' => $goods->subCategory?->name,
+            'scate_name' => $goods->scate_name,
             'unit' => $goods->unit,
             'spec' => $goods->spec,
             'level' => $goods->level,
@@ -156,135 +227,157 @@ class GoodsService
             'status' => $goods->status,
             'status_text' => $goods->getStatusText(),
             'schedule_down_time' => $goods->schedule_down_time,
-            'created_at' => $goods->created_at?->format('Y-m-d H:i:s'),
-            'updated_at' => $goods->updated_at?->format('Y-m-d H:i:s'),
+            'update_time' => $goods->update_time,
         ];
     }
 
-    /**
-     * 上传图片
-     */
-    private function uploadImage($file): string
-    {
-        $path = $file->store('goods', 'public');
-        return $path;
-    }
-
-    /**
-     * 获取供应商商品列表
-     * 注意：goods表中没有supplier_id字段，此方法暂时保留但需根据实际业务调整
-     */
     public function getSupplierGoods(int $supplierId): array
     {
-        // TODO: 根据实际业务逻辑调整，goods表可能通过其他方式关联供应商
-        $goods = Goods::where('status', Goods::STATUS_ON)
-            ->orderBy('id', 'desc')
-            ->get();
-
-        return $goods->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'goods_sn' => $item->goods_sn,
-                'goods_name' => $item->goods_name,
-                'unit' => $item->unit,
-                'spec' => $item->spec,
-                'discount_rate' => $item->discount_rate,
-            ];
-        })->toArray();
+        return Goods::where('status', Goods::STATUS_ON)
+            ->orderByDesc('id')
+            ->get(['id', 'goods_sn', 'goods_name', 'unit', 'spec', 'discount_rate'])
+            ->map(fn ($item) => $item->toArray())
+            ->all();
     }
 
-    /**
-     * 商品上架
-     */
     public function publish(int $id): Goods
     {
         $goods = Goods::findOrFail($id);
 
-        $goods->status = Goods::STATUS_ON;
-        $goods->schedule_down_time = 0;
-        $goods->update_time = time();
-        $goods->save();
-
-        // 记录上下架日志
-        $this->logStatusChange($goods, 1, '商品上架');
-
-        return $goods;
-    }
-
-    /**
-     * 商品下架
-     */
-    public function unpublish(int $id, int $downType = 1): Goods
-    {
-        $goods = Goods::findOrFail($id);
-
-        if ($downType === 2) {
-            // 预下架：7天后自动下架
-            $goods->schedule_down_time = time() + 7 * 86400;
-        } else {
-            // 立即下架
-            $goods->status = Goods::STATUS_OFF;
-            $goods->schedule_down_time = 0;
+        if ((int) $goods->status !== Goods::STATUS_OFF) {
+            throw new \InvalidArgumentException('只有下架状态的商品才能上架');
+        }
+        if ((float) $goods->discount_rate < 0) {
+            throw new \InvalidArgumentException('商品未设置浮动率，上架失败');
         }
 
-        $goods->update_time = time();
-        $goods->save();
+        $jiagewang = GoodsJiagewang::where('goods_id', $id)->first();
+        if (!$jiagewang) {
+            throw new \InvalidArgumentException('商品未上传指导价，上架失败');
+        }
 
-        // 记录上下架日志
-        $this->logStatusChange($goods, 0, $downType === 2 ? '预下架（7天后自动下架）' : '商品下架');
+        $user = Auth::user();
+        $oldStatus = (int) $goods->status;
 
-        return $goods;
+        return DB::transaction(function () use ($goods, $user, $oldStatus) {
+            $goods->update([
+                'status' => Goods::STATUS_ON,
+                'schedule_down_time' => 0,
+                'down_reason' => '',
+                'update_time' => time(),
+            ]);
+
+            $this->writeStatusLog($goods, 1, $oldStatus, Goods::STATUS_ON, '', 0);
+
+            return $goods->fresh();
+        });
     }
 
-    /**
-     * 批量上架
-     */
+    public function unpublish(int $id, int $downType = 1, string $reason = ''): Goods
+    {
+        if ($reason === '') {
+            throw new \InvalidArgumentException('请输入下架原因');
+        }
+        if (!in_array($downType, [1, 2], true)) {
+            throw new \InvalidArgumentException('下架类型错误');
+        }
+
+        $goods = Goods::findOrFail($id);
+        if ((int) $goods->status !== Goods::STATUS_ON) {
+            throw new \InvalidArgumentException('只有上架状态的商品才能下架');
+        }
+
+        $user = Auth::user();
+        $oldStatus = (int) $goods->status;
+        $scheduleDownTime = 0;
+        $newStatus = Goods::STATUS_OFF;
+        $operateType = 2;
+        $downReason = $reason;
+        $logNewStatus = Goods::STATUS_OFF;
+
+        if ($downType === 2) {
+            $newStatus = Goods::STATUS_ON;
+            $operateType = 3;
+            $downReason = '';
+            $tomorrow = strtotime(date('Y-m-d', strtotime('+1 day')) . ' 00:00:00');
+            $scheduleDownTime = strtotime('+7 days', $tomorrow);
+            $logNewStatus = 2;
+        }
+
+        return DB::transaction(function () use ($goods, $newStatus, $scheduleDownTime, $downReason, $oldStatus, $operateType, $reason, $logNewStatus) {
+            $goods->update([
+                'status' => $newStatus,
+                'schedule_down_time' => $scheduleDownTime,
+                'down_reason' => $downReason,
+                'update_time' => time(),
+            ]);
+
+            $this->writeStatusLog($goods, $operateType, $oldStatus, $logNewStatus, $reason, $scheduleDownTime);
+
+            return $goods->fresh();
+        });
+    }
+
     public function batchPublish(array $ids): int
     {
         $count = 0;
         foreach ($ids as $id) {
             try {
-                $this->publish($id);
+                $this->publish((int) $id);
                 $count++;
-            } catch (\Exception $e) {
-                // 忽略单个失败
+            } catch (\Exception) {
             }
         }
+
         return $count;
     }
 
-    /**
-     * 批量下架
-     */
     public function batchUnpublish(array $ids): int
     {
-        return Goods::whereIn('id', $ids)
-            ->update([
-                'status' => Goods::STATUS_OFF,
-                'schedule_down_time' => 0,
-                'update_time' => time()
-            ]);
+        return Goods::whereIn('id', $ids)->update([
+            'status' => Goods::STATUS_OFF,
+            'discount_rate' => 0,
+            'schedule_down_time' => 0,
+            'update_time' => time(),
+        ]);
     }
 
-    /**
-     * 获取上下架记录
-     */
     public function getStatusLog(int $id): array
     {
-        // 这里需要配合商品状态日志模型
-        // 暂时返回空数组，后续可对接实际日志表
-        return [];
+        $logs = GoodsStatusLog::where('goods_id', $id)
+            ->orderByDesc('operate_time')
+            ->get();
+
+        $operateTypeMap = [1 => '上架', 2 => '立即下架', 3 => '预下架'];
+        $statusMap = [0 => '下架', 1 => '上架', 2 => '待下架'];
+
+        return $logs->map(function ($log) use ($operateTypeMap, $statusMap) {
+            return [
+                'id' => $log->id,
+                'goods_id' => $log->goods_id,
+                'operate_type' => $log->operate_type,
+                'operate_type_text' => $operateTypeMap[$log->operate_type] ?? '',
+                'old_status' => $log->old_status,
+                'old_status_text' => $statusMap[$log->old_status] ?? '',
+                'new_status' => $log->new_status,
+                'new_status_text' => $statusMap[$log->new_status] ?? '',
+                'reason' => $log->reason,
+                'operator' => $log->operator,
+                'operate_user' => $log->operator,
+                'operate_time' => $log->operate_time,
+                'operate_time_text' => $log->operate_time ? date('Y-m-d H:i:s', $log->operate_time) : '',
+                'schedule_down_time' => $log->schedule_down_time,
+                'schedule_down_time_text' => $log->schedule_down_time
+                    ? date('Y-m-d H:i:s', $log->schedule_down_time)
+                    : '',
+            ];
+        })->all();
     }
 
-    /**
-     * 获取历史价格
-     */
     public function getHistoryPrice(int $id, array $params = []): array
     {
         $goods = Goods::findOrFail($id);
 
-        // 这里需要配合价格历史模型 goods_jiagewang
-        // 暂时返回商品当前折扣率信息
         return [
             'goods_id' => $id,
             'goods_name' => $goods->goods_name,
@@ -293,163 +386,94 @@ class GoodsService
         ];
     }
 
-    /**
-     * 商品导入
-     */
     public function import($file): array
     {
-        $importService = new \App\Services\Common\ExcelImportService();
-
-        // 读取 Excel 数据
-        $data = $importService->import($file->getRealPath());
-
-        // 验证规则
-        $rules = [
-            '商品名称' => ['required', 'max:255'],
-            '规格' => ['max:255'],
-            '单位' => ['required', 'max:50'],
-            '指导价' => ['numeric'],
-        ];
-
-        // 验证数据
-        $result = $importService->validate($data, $rules);
-        $valid = $result['valid'];
-        $errors = $result['errors'];
-
-        $success = 0;
-        $failed = count($errors);
-
-        // 导入有效数据
-        foreach ($valid as $row) {
-            try {
-                // 查找或创建分类
-                $categoryId = null;
-                if (!empty($row['一级分类'])) {
-                    $category = Category::where('name', $row['一级分类'])
-                        ->where('parent_id', 0)
-                        ->first();
-                    if ($category) {
-                        $categoryId = $category->id;
-                    }
-                }
-
-                // 创建商品
-                Goods::create([
-                    'goods_name' => $row['商品名称'],
-                    'spec' => $row['规格'] ?? '',
-                    'unit' => $row['单位'] ?? '',
-                    'discount_rate' => floatval($row['折扣率'] ?? 0),
-                    'cate_id' => $categoryId,
-                    'status' => Goods::STATUS_OFF, // 默认下架
-                    'goods_sn' => $this->generateGoodsSn(),
-                    'add_time' => time(),
-                    'update_time' => time(),
-                ]);
-
-                $success++;
-            } catch (\Exception $e) {
-                $failed++;
-                $errors[] = [
-                    'row' => '未知',
-                    'errors' => [$e->getMessage()],
-                    'data' => $row,
-                ];
-            }
-        }
-
-        return [
-            'success' => $success,
-            'failed' => $failed,
-            'errors' => array_slice($errors, 0, 10), // 只返回前10条错误
-        ];
+        throw new \RuntimeException('商品导入功能待对接旧模板逻辑');
     }
 
-    /**
-     * 生成商品编号
-     */
-    private function generateGoodsSn(): string
-    {
-        return 'G' . date('YmdHis') . rand(1000, 9999);
-    }
-
-    /**
-     * 商品导出
-     */
     public function export(array $params): string
     {
-        $query = Goods::with(['category', 'subCategory'])
-            ->search($params['keyword'] ?? null)
-            ->byCategory($params['cate_id'] ?? null)
-            ->byStatus($params['status'] ?? null);
-
-        $goods = $query->orderBy('id', 'desc')->get();
-
-        // 表头
-        $headers = [
-            '商品编号',
-            '商品名称',
-            '一级分类',
-            '二级分类',
-            '规格',
-            '单位',
-            '折扣率',
-            '等级',
-            '属性',
-            '教师专用',
-            '议价商品',
-            '上架状态',
-            '更新时间',
-        ];
-
-        // 数据
-        $data = $goods->map(function ($item) {
+        $result = $this->getList(array_merge($params, ['page' => 1, 'page_size' => 100000]));
+        $headers = ['商品编号', '商品名称', '一级分类', '二级分类', '规格', '单位', '上架状态', '更新时间'];
+        $data = collect($result['list'])->map(function ($item) {
             return [
-                $item->goods_sn ?? $item->id,
-                $item->goods_name,
-                $item->category?->name ?? '',
-                $item->subCategory?->name ?? '',
-                $item->spec ?? '',
-                $item->unit ?? '',
-                $item->discount_rate ?? 0,
-                $item->level === 1 ? '普通' : '精品',
-                $item->attr === 1 ? '非标品' : ($item->attr === 2 ? '标品' : '特种品'),
-                $item->goods_type === 1 ? '是' : '否',
-                $item->goods_channel === 1 ? '是' : '否',
-                $item->status === 1 ? '上架' : '下架',
-                $item->updated_at?->format('Y-m-d H:i:s') ?? '',
+                $item['goods_sn'] ?? '',
+                $item['goods_name'] ?? '',
+                $item['cate_name'] ?? '',
+                $item['scate_name'] ?? '',
+                $item['spec'] ?? '',
+                $item['unit'] ?? '',
+                ((int) ($item['status'] ?? 0) === 1) ? '上架' : '下架',
+                !empty($item['update_time']) ? date('Y-m-d H:i:s', (int) $item['update_time']) : '',
             ];
-        })->toArray();
+        })->all();
 
-        // 使用 ExcelExportService 导出
         $excelService = new \App\Services\Common\ExcelExportService();
+
         return $excelService->export($headers, $data, 'goods_export');
     }
 
-    /**
-     * 获取商品单位列表
-     */
     public function getUnits(): array
     {
-        return [
-            ['id' => 1, 'name' => '斤'],
-            ['id' => 2, 'name' => '公斤'],
-            ['id' => 3, 'name' => '克'],
-            ['id' => 4, 'name' => '个'],
-            ['id' => 5, 'name' => '件'],
-            ['id' => 6, 'name' => '箱'],
-            ['id' => 7, 'name' => '袋'],
-            ['id' => 8, 'name' => '瓶'],
-            ['id' => 9, 'name' => '包'],
-            ['id' => 10, 'name' => '盒'],
-        ];
+        return app(GoodsUnitService::class)->getActiveUnits();
     }
 
-    /**
-     * 记录状态变更日志
-     */
-    private function logStatusChange(Goods $goods, int $newStatus, string $reason): void
+    private function generateGoodsSn(int $cateId): string
     {
-        // 这里可以对接日志表
-        // 暂时不实现具体逻辑
+        if ($cateId >= 10) {
+            $maxSn = Goods::where('cate_id', '>=', 10)->max('goods_sn');
+        } else {
+            $maxSn = Goods::where('cate_id', $cateId)->max('goods_sn');
+        }
+
+        if ($maxSn) {
+            $goodsSn = str_pad((string) ((int) $maxSn + 1), 6, '0', STR_PAD_LEFT);
+        } else {
+            $goodsSn = str_pad((string) ($cateId + 1), 6, '0', STR_PAD_RIGHT);
+        }
+
+        if (Goods::where('goods_sn', $goodsSn)->exists()) {
+            $maxSn = Goods::max('goods_sn');
+            $goodsSn = str_pad((string) ((int) $maxSn + 1), 6, '0', STR_PAD_LEFT);
+        }
+
+        return $goodsSn;
+    }
+
+    private function normalizeImageList(array $images): array
+    {
+        return array_values(array_filter(array_map(function ($img) {
+            $img = ltrim(str_replace(config('app.upload_url', ''), '', (string) $img), '/');
+            return str_replace('tmp/', 'goods/', $img);
+        }, $images)));
+    }
+
+    private function calcLimitPrice(float $price, float $discountRate): float
+    {
+        return round($price * $discountRate + $price, 2);
+    }
+
+    private function writeStatusLog(
+        Goods $goods,
+        int $operateType,
+        int $oldStatus,
+        int $newStatus,
+        string $reason,
+        int $scheduleDownTime
+    ): void {
+        $user = Auth::user();
+
+        GoodsStatusLog::create([
+            'goods_id' => $goods->id,
+            'goods_sn' => $goods->goods_sn,
+            'goods_name' => $goods->goods_name,
+            'operator' => $user?->name ?? '',
+            'operate_time' => time(),
+            'operate_type' => $operateType,
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+            'reason' => $reason,
+            'schedule_down_time' => $scheduleDownTime,
+        ]);
     }
 }

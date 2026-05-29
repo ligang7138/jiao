@@ -60,7 +60,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('backorder')->group(function () {
             // 退货单管理
             Route::get('/', [\App\Http\Controllers\Admin\BackorderController::class, 'index'])->name('admin.backorder.index');
-            Route::get('/{id}', [\App\Http\Controllers\Admin\BackorderController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\BackorderController::class, 'show'])->where('id', '[0-9]+')->name('admin.backorder.show');
             Route::post('/{id}/audit', [\App\Http\Controllers\Admin\BackorderController::class, 'audit'])->where('id', '[0-9]+')->name('admin.backorder.audit');
             Route::post('/{id}/audit-reject', [\App\Http\Controllers\Admin\BackorderController::class, 'auditReject'])->where('id', '[0-9]+');
             Route::post('/{id}/cancel', [\App\Http\Controllers\Admin\BackorderController::class, 'cancel'])->where('id', '[0-9]+');
@@ -81,7 +81,7 @@ Route::prefix('v1')->group(function () {
         // 招投标管理
         Route::prefix('bidding')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\BiddingController::class, 'index'])->name('admin.bidding.index');
-            Route::get('/{id}', [\App\Http\Controllers\Admin\BiddingController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\BiddingController::class, 'show'])->where('id', '[0-9]+')->name('admin.bidding.show');
             Route::post('/{id}/audit', [\App\Http\Controllers\Admin\BiddingController::class, 'audit'])->where('id', '[0-9]+');
             Route::get('/logs', [\App\Http\Controllers\Admin\BiddingController::class, 'logList']);
             Route::post('/logs/{id}/terminate', [\App\Http\Controllers\Admin\BiddingController::class, 'terminate'])->where('id', '[0-9]+');
@@ -143,7 +143,7 @@ Route::prefix('v1')->group(function () {
             // 应急事件列表
             Route::get('/', [\App\Http\Controllers\Admin\EmergencyController::class, 'index'])->name('admin.emergency.index');
             // 应急事件详情
-            Route::get('/{id}', [\App\Http\Controllers\Admin\EmergencyController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\EmergencyController::class, 'show'])->where('id', '[0-9]+')->name('admin.emergency.show');
             // 处理应急事件
             Route::post('/{id}/process', [\App\Http\Controllers\Admin\EmergencyController::class, 'process'])->where('id', '[0-9]+');
 
@@ -160,7 +160,7 @@ Route::prefix('v1')->group(function () {
             // 投诉列表
             Route::get('/', [\App\Http\Controllers\Admin\ComplaintController::class, 'index'])->name('admin.complaint.index');
             // 投诉详情
-            Route::get('/{id}', [\App\Http\Controllers\Admin\ComplaintController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\ComplaintController::class, 'show'])->where('id', '[0-9]+')->name('admin.complaint.show');
             // 处理投诉
             Route::post('/{id}/process', [\App\Http\Controllers\Admin\ComplaintController::class, 'process'])->where('id', '[0-9]+');
 
@@ -174,7 +174,7 @@ Route::prefix('v1')->group(function () {
 
         // ==================== 分组管理 ====================
         Route::prefix('admin/group')->group(function () {
-            Route::get('/options', [\App\Http\Controllers\Admin\GroupController::class, 'options']);
+            Route::get('/options', [\App\Http\Controllers\Admin\GroupController::class, 'options'])->name('admin.group.options');
             Route::get('/', [\App\Http\Controllers\Admin\GroupController::class, 'index'])->name('admin.group.index');
             Route::post('/', [\App\Http\Controllers\Admin\GroupController::class, 'store'])->name('admin.group.store');
             Route::get('/{id}', [\App\Http\Controllers\Admin\GroupController::class, 'show'])->where('id', '[0-9]+')->name('admin.group.show');
@@ -214,60 +214,68 @@ Route::prefix('v1')->group(function () {
 
         // ==================== 商品管理 ====================
         Route::prefix('admin/goods')->group(function () {
+            // 商品单位列表（须在 {id} 之前）
+            Route::get('/units', [\App\Http\Controllers\Admin\GoodsController::class, 'units'])->name('admin.goods.units');
+            // 商品导出
+            Route::get('/export', [\App\Http\Controllers\Admin\GoodsController::class, 'export'])->name('admin.goods.export');
+            // 商品导入
+            Route::post('/import', [\App\Http\Controllers\Admin\GoodsController::class, 'import'])->name('admin.goods.import');
+            // 批量删除
+            Route::post('/batch-delete', [\App\Http\Controllers\Admin\GoodsController::class, 'batchDestroy'])->name('admin.goods.batch-delete');
+            // 批量上架
+            Route::post('/batch-publish', [\App\Http\Controllers\Admin\GoodsController::class, 'batchPublish'])->name('admin.goods.batch-publish');
+            // 批量下架
+            Route::post('/batch-unpublish', [\App\Http\Controllers\Admin\GoodsController::class, 'batchUnpublish'])->name('admin.goods.batch-unpublish');
             // 商品列表
             Route::get('/', [\App\Http\Controllers\Admin\GoodsController::class, 'index'])->name('admin.goods.index');
             // 创建商品
             Route::post('/', [\App\Http\Controllers\Admin\GoodsController::class, 'store'])->name('admin.goods.store');
             // 商品详情
-            Route::get('/{id}', [\App\Http\Controllers\Admin\GoodsController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\GoodsController::class, 'show'])->where('id', '[0-9]+')->name('admin.goods.show');
             // 更新商品
             Route::put('/{id}', [\App\Http\Controllers\Admin\GoodsController::class, 'update'])->where('id', '[0-9]+')->name('admin.goods.update');
             // 删除商品
-            Route::delete('/{id}', [\App\Http\Controllers\Admin\GoodsController::class, 'destroy'])->where('id', '[0-9]+');
-            // 批量删除
-            Route::post('/batch-delete', [\App\Http\Controllers\Admin\GoodsController::class, 'batchDestroy']);
+            Route::delete('/{id}', [\App\Http\Controllers\Admin\GoodsController::class, 'destroy'])->where('id', '[0-9]+')->name('admin.goods.destroy');
             // 更改状态
             Route::put('/{id}/status', [\App\Http\Controllers\Admin\GoodsController::class, 'changeStatus'])->where('id', '[0-9]+')->name('admin.goods.status');
             // 商品上架
             Route::post('/{id}/publish', [\App\Http\Controllers\Admin\GoodsController::class, 'publish'])->where('id', '[0-9]+');
             // 商品下架
             Route::post('/{id}/unpublish', [\App\Http\Controllers\Admin\GoodsController::class, 'unpublish'])->where('id', '[0-9]+');
-            // 批量上架
-            Route::post('/batch-publish', [\App\Http\Controllers\Admin\GoodsController::class, 'batchPublish']);
-            // 批量下架
-            Route::post('/batch-unpublish', [\App\Http\Controllers\Admin\GoodsController::class, 'batchUnpublish']);
             // 上下架记录
-            Route::get('/{id}/status-log', [\App\Http\Controllers\Admin\GoodsController::class, 'statusLog'])->where('id', '[0-9]+');
+            Route::get('/{id}/status-log', [\App\Http\Controllers\Admin\GoodsController::class, 'statusLog'])->where('id', '[0-9]+')->name('admin.goods.status-log');
             // 历史价格
-            Route::get('/{id}/history-price', [\App\Http\Controllers\Admin\GoodsController::class, 'historyPrice'])->where('id', '[0-9]+');
-            // 商品导入
-            Route::post('/import', [\App\Http\Controllers\Admin\GoodsController::class, 'import'])->name('admin.goods.import');
-            // 商品导出
-            Route::get('/export', [\App\Http\Controllers\Admin\GoodsController::class, 'export'])->name('admin.goods.export');
-            // 商品单位列表
-            Route::get('/units', [\App\Http\Controllers\Admin\GoodsController::class, 'units']);
+            Route::get('/{id}/history-price', [\App\Http\Controllers\Admin\GoodsController::class, 'historyPrice'])->where('id', '[0-9]+')->name('admin.goods.history-price');
             // 供应商商品列表
-            Route::get('/supplier/{supplierId}', [\App\Http\Controllers\Admin\GoodsController::class, 'getSupplierGoods'])->where('supplierId', '[0-9]+');
+            Route::get('/supplier/{supplierId}', [\App\Http\Controllers\Admin\GoodsController::class, 'getSupplierGoods'])->where('supplierId', '[0-9]+')->name('admin.goods.supplier-goods');
+        });
+
+        // ==================== 商品单位管理 ====================
+        Route::prefix('admin/goods-units')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\GoodsUnitController::class, 'index'])->name('admin.goods.unit.index');
+            Route::post('/', [\App\Http\Controllers\Admin\GoodsUnitController::class, 'store'])->name('admin.goods.unit.add');
+            Route::put('/{id}', [\App\Http\Controllers\Admin\GoodsUnitController::class, 'update'])->where('id', '[0-9]+')->name('admin.goods.unit.edit');
+            Route::put('/{id}/status', [\App\Http\Controllers\Admin\GoodsUnitController::class, 'setStatus'])->where('id', '[0-9]+')->name('admin.goods.unit.status');
         });
 
         // ==================== 分类管理 ====================
         Route::prefix('admin/categories')->group(function () {
             // 分类树形结构
-            Route::get('/tree', [\App\Http\Controllers\Admin\CategoryController::class, 'tree']);
+            Route::get('/tree', [\App\Http\Controllers\Admin\CategoryController::class, 'tree'])->name('admin.category.tree');
+            // 顶级分类
+            Route::get('/top', [\App\Http\Controllers\Admin\CategoryController::class, 'getTopCategories'])->name('admin.category.top');
             // 分类列表
             Route::get('/', [\App\Http\Controllers\Admin\CategoryController::class, 'index'])->name('admin.category.index');
             // 创建分类
             Route::post('/', [\App\Http\Controllers\Admin\CategoryController::class, 'store'])->name('admin.category.store');
             // 分类详情
-            Route::get('/{id}', [\App\Http\Controllers\Admin\CategoryController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\CategoryController::class, 'show'])->where('id', '[0-9]+')->name('admin.category.show');
             // 更新分类
             Route::put('/{id}', [\App\Http\Controllers\Admin\CategoryController::class, 'update'])->where('id', '[0-9]+')->name('admin.category.update');
             // 删除分类
-            Route::delete('/{id}', [\App\Http\Controllers\Admin\CategoryController::class, 'destroy'])->where('id', '[0-9]+');
-            // 顶级分类
-            Route::get('/top', [\App\Http\Controllers\Admin\CategoryController::class, 'getTopCategories']);
+            Route::delete('/{id}', [\App\Http\Controllers\Admin\CategoryController::class, 'destroy'])->where('id', '[0-9]+')->name('admin.category.destroy');
             // 子分类
-            Route::get('/{parentId}/children', [\App\Http\Controllers\Admin\CategoryController::class, 'getChildren'])->where('parentId', '[0-9]+');
+            Route::get('/{parentId}/children', [\App\Http\Controllers\Admin\CategoryController::class, 'getChildren'])->where('parentId', '[0-9]+')->name('admin.category.children');
             // 设置状态
             Route::put('/{id}/status', [\App\Http\Controllers\Admin\CategoryController::class, 'setStatus'])->where('id', '[0-9]+')->name('admin.category.status');
             // 设置浮动率上限
@@ -299,7 +307,7 @@ Route::prefix('v1')->group(function () {
             // 订单统计
             Route::get('/statistics', [\App\Http\Controllers\Admin\OrderController::class, 'statistics']);
             // 溯源信息
-            Route::get('/{id}/trace-source', [\App\Http\Controllers\Admin\OrderController::class, 'traceSource'])->where('id', '[0-9]+');
+            Route::get('/{id}/trace-source', [\App\Http\Controllers\Admin\OrderController::class, 'traceSource'])->where('id', '[0-9]+')->name('admin.order.trace-source');
         });
 
         // ==================== 供应商管理 ====================
@@ -309,7 +317,7 @@ Route::prefix('v1')->group(function () {
             // 创建供应商
             Route::post('/', [\App\Http\Controllers\Admin\SupplierController::class, 'store'])->name('admin.supplier.store');
             // 供应商详情
-            Route::get('/{id}', [\App\Http\Controllers\Admin\SupplierController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\SupplierController::class, 'show'])->where('id', '[0-9]+')->name('admin.supplier.show');
             // 更新供应商
             Route::put('/{id}', [\App\Http\Controllers\Admin\SupplierController::class, 'update'])->where('id', '[0-9]+')->name('admin.supplier.update');
             // 删除供应商
@@ -317,17 +325,17 @@ Route::prefix('v1')->group(function () {
             // 更改状态
             Route::put('/{id}/status', [\App\Http\Controllers\Admin\SupplierController::class, 'changeStatus'])->where('id', '[0-9]+')->name('admin.supplier.status');
             // 启用的供应商列表
-            Route::get('/active', [\App\Http\Controllers\Admin\SupplierController::class, 'getActiveSuppliers']);
+            Route::get('/active', [\App\Http\Controllers\Admin\SupplierController::class, 'getActiveSuppliers'])->name('admin.supplier.active');
             // 折扣变更记录
             Route::get('/{id}/discount-logs', [\App\Http\Controllers\Admin\SupplierController::class, 'getDiscountLogs'])->where('id', '[0-9]+');
         });
 
         // ==================== 用户管理 ====================
         Route::prefix('admin/roles')->group(function () {
-            Route::get('/options', [\App\Http\Controllers\Admin\RoleController::class, 'options']);
+            Route::get('/options', [\App\Http\Controllers\Admin\RoleController::class, 'options'])->name('admin.role.options');
             Route::get('/', [\App\Http\Controllers\Admin\RoleController::class, 'index'])->name('admin.role.index');
             Route::post('/', [\App\Http\Controllers\Admin\RoleController::class, 'store'])->name('admin.role.store');
-            Route::get('/{id}', [\App\Http\Controllers\Admin\RoleController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\RoleController::class, 'show'])->where('id', '[0-9]+')->name('admin.role.show');
             Route::put('/{id}', [\App\Http\Controllers\Admin\RoleController::class, 'update'])->where('id', '[0-9]+')->name('admin.role.update');
             Route::put('/{id}/status', [\App\Http\Controllers\Admin\RoleController::class, 'changeStatus'])->where('id', '[0-9]+')->name('admin.role.status');
             Route::get('/{id}/privilege', [\App\Http\Controllers\Admin\RoleController::class, 'privilege'])->where('id', '[0-9]+');
@@ -335,12 +343,12 @@ Route::prefix('v1')->group(function () {
         });
 
         Route::prefix('admin/permissions')->group(function () {
-            Route::get('/tree', [\App\Http\Controllers\Admin\PermissionController::class, 'tree']);
+            Route::get('/tree', [\App\Http\Controllers\Admin\PermissionController::class, 'tree'])->name('admin.permission.tree');
             Route::get('/modules', [\App\Http\Controllers\Admin\PermissionController::class, 'modules']);
             Route::get('/controls', [\App\Http\Controllers\Admin\PermissionController::class, 'controls']);
             Route::get('/', [\App\Http\Controllers\Admin\PermissionController::class, 'index'])->name('admin.permission.index');
             Route::post('/', [\App\Http\Controllers\Admin\PermissionController::class, 'store'])->name('admin.permission.store');
-            Route::get('/{id}', [\App\Http\Controllers\Admin\PermissionController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\PermissionController::class, 'show'])->where('id', '[0-9]+')->name('admin.permission.show');
             Route::put('/{id}', [\App\Http\Controllers\Admin\PermissionController::class, 'update'])->where('id', '[0-9]+')->name('admin.permission.update');
             Route::put('/{id}/status', [\App\Http\Controllers\Admin\PermissionController::class, 'changeStatus'])->where('id', '[0-9]+')->name('admin.permission.status');
         });
@@ -348,17 +356,17 @@ Route::prefix('v1')->group(function () {
         Route::prefix('admin/logs')->group(function () {
             Route::get('/export', [\App\Http\Controllers\Admin\SystemLogController::class, 'export'])->name('admin.log.export');
             Route::get('/', [\App\Http\Controllers\Admin\SystemLogController::class, 'index'])->name('admin.log.index');
-            Route::get('/{id}', [\App\Http\Controllers\Admin\SystemLogController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\SystemLogController::class, 'show'])->where('id', '[0-9]+')->name('admin.log.show');
         });
 
         Route::prefix('admin/users')->group(function () {
-            Route::get('/options', [\App\Http\Controllers\Admin\UserController::class, 'options']);
+            Route::get('/options', [\App\Http\Controllers\Admin\UserController::class, 'options'])->name('admin.user.options');
             // 用户列表
             Route::get('/', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('admin.user.index');
             // 创建用户
             Route::post('/', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('admin.user.store');
             // 用户详情
-            Route::get('/{id}', [\App\Http\Controllers\Admin\UserController::class, 'show'])->where('id', '[0-9]+');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\UserController::class, 'show'])->where('id', '[0-9]+')->name('admin.user.show');
             // 更新用户
             Route::put('/{id}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->where('id', '[0-9]+')->name('admin.user.update');
             // 删除用户
@@ -377,7 +385,7 @@ Route::prefix('v1')->group(function () {
 
         // ==================== 学校管理 ====================
         Route::prefix('admin/schools')->group(function () {
-            Route::get('/options', [\App\Http\Controllers\Admin\SchoolController::class, 'options']);
+            Route::get('/options', [\App\Http\Controllers\Admin\SchoolController::class, 'options'])->name('admin.school.options');
             Route::get('/active', [\App\Http\Controllers\Admin\SchoolController::class, 'getActiveSchools'])->name('admin.school.active');
             Route::get('/', [\App\Http\Controllers\Admin\SchoolController::class, 'index'])->name('admin.school.index');
             Route::post('/', [\App\Http\Controllers\Admin\SchoolController::class, 'store'])->name('admin.school.store');

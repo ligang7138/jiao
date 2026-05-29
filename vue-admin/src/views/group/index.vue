@@ -46,7 +46,7 @@
     <el-dialog v-model="formDialogVisible" :title="formType === 'add' ? '新增食堂组' : '编辑食堂组'" width="500px" :close-on-click-modal="false">
       <el-form ref="formRef" :model="groupForm" :rules="formRules" label-width="100px">
         <el-form-item label="分组名称" prop="name">
-          <el-input v-model="groupForm.name" maxlength="50" />
+          <el-input v-model="groupForm.name" maxlength="10" show-word-limit />
         </el-form-item>
         <el-form-item label="父分组">
           <el-select v-model="groupForm.pid" placeholder="顶级分组" clearable style="width: 100%">
@@ -61,7 +61,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="分组编码">
-          <el-input v-model="groupForm.code" maxlength="30" />
+          <el-input v-model="groupForm.code" maxlength="10" show-word-limit />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -154,7 +154,20 @@ const formType = ref('add')
 const formRef = ref(null)
 const submitLoading = ref(false)
 const groupForm = reactive({ id: null, name: '', pid: 0, code: '' })
-const formRules = { name: [{ required: true, message: '请输入分组名称', trigger: 'blur' }] }
+const formRules = {
+  name: [
+    { required: true, message: '请输入分组名称', trigger: 'blur' },
+    { max: 10, message: '分组名称不能超过10个字符', trigger: 'blur' },
+  ],
+}
+
+function buildGroupPayload() {
+  return {
+    name: groupForm.name,
+    pid: groupForm.pid ?? 0,
+    code: groupForm.code || '',
+  }
+}
 
 const canteenDialogVisible = ref(false)
 const currentGroup = ref({})
@@ -211,11 +224,12 @@ async function handleSubmit() {
   await formRef.value.validate()
   submitLoading.value = true
   try {
+    const payload = buildGroupPayload()
     if (formType.value === 'add') {
-      await createGroup(groupForm)
+      await createGroup(payload)
       ElMessage.success('新增成功')
     } else {
-      await updateGroup(groupForm.id, groupForm)
+      await updateGroup(groupForm.id, payload)
       ElMessage.success('编辑成功')
     }
     formDialogVisible.value = false

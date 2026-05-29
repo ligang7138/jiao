@@ -25,10 +25,13 @@ class Goods extends Model
     protected $fillable = [
         'goods_sn',
         'goods_name',
+        'logo',
         'spec',
         'unit',
         'cate_id',
+        'cate_name',
         'scate_id',
+        'scate_name',
         'level',
         'attr',
         'goods_type',
@@ -43,6 +46,9 @@ class Goods extends Model
         'expire_date',
         'status',
         'schedule_down_time',
+        'down_reason',
+        'source',
+        'update_user',
         'add_time',
         'update_time',
     ];

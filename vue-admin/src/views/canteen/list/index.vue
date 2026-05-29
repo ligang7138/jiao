@@ -349,8 +349,23 @@ async function handleSubmit() {
   await formRef.value.validate()
   submitLoading.value = true
   try {
-    const payload = { ...formData }
-    delete payload.id
+    const payload = {
+      school_id: formData.school_id,
+      name: formData.name,
+      canteen_type: formData.canteen_type,
+      monthly_purchase_amount: formData.monthly_purchase_amount,
+      linkman: formData.linkman,
+      mobile: formData.mobile,
+      emergency_linkman: formData.emergency_linkman,
+      emergency_mobile: formData.emergency_mobile,
+      receive_linkman: formData.receive_linkman,
+      receive_mobile: formData.receive_mobile,
+      receive_start_time: formData.receive_start_time,
+      receive_end_time: formData.receive_end_time,
+      address: formData.address,
+      remark: formData.remark,
+      status: formData.status,
+    }
     if (formData.id) {
       await updateCanteen(formData.id, payload)
       ElMessage.success('修改成功')

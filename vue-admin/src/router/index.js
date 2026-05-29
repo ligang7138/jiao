@@ -120,6 +120,12 @@ export const asyncRoutes = [
         component: () => import('@/views/goods/category/index.vue'),
         meta: { title: '分类管理', icon: 'Grid', permission: ['category.index'] },
       },
+      {
+        path: 'unit',
+        name: 'GoodsUnit',
+        component: () => import('@/views/goods/unit/index.vue'),
+        meta: { title: '商品单位', icon: 'Scale', permission: ['goods.unit'] },
+      },
     ],
   },
   {
@@ -245,39 +251,6 @@ export const asyncRoutes = [
         name: 'ApproveBidding',
         component: () => import('@/views/approve/bidding.vue'),
         meta: { title: '合作审阅', icon: 'Connection' },
-      },
-    ],
-  },
-  {
-    path: '/jiagewang',
-    name: 'Jiagewang',
-    component: () => import('@/layouts/DefaultLayout.vue'),
-    redirect: '/jiagewang/list',
-    meta: { title: '价格网管理', icon: 'PriceTag' },
-    children: [
-      {
-        path: 'list',
-        name: 'JiagewangList',
-        component: () => import('@/views/jiagewang/index.vue'),
-        meta: { title: '指导价列表', icon: 'List' },
-      },
-      {
-        path: 'import',
-        name: 'JiagewangImport',
-        component: () => import('@/views/jiagewang/import.vue'),
-        meta: { title: '指导价导入', icon: 'Upload', hidden: true },
-      },
-      {
-        path: 'history',
-        name: 'JiagewangHistory',
-        component: () => import('@/views/jiagewang/history.vue'),
-        meta: { title: '历史记录', icon: 'Clock', hidden: true },
-      },
-      {
-        path: 'match',
-        name: 'JiagewangMatch',
-        component: () => import('@/views/jiagewang/match.vue'),
-        meta: { title: '商品匹配', icon: 'Connection', hidden: true },
       },
     ],
   },

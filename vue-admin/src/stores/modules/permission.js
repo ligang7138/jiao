@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useUserStore } from '@/stores/modules/user'
 
 export const usePermissionStore = defineStore('permission', {
   state: () => ({
@@ -7,6 +8,8 @@ export const usePermissionStore = defineStore('permission', {
 
   getters: {
     hasPermission: (state) => (permission) => {
+      const userStore = useUserStore()
+      if (userStore.isSuper) return true
       if (state.permissions.includes('*')) return true
       return state.permissions.includes(permission)
     },

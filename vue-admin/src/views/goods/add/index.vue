@@ -212,8 +212,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { createGoods } from '@/api/modules/goods'
-import { getCategoryList, getSubCategories } from '@/api/modules/category'
+import { createGoods, getGoodsUnits } from '@/api/modules/goods'
+import { getTopCategories, getSubCategories } from '@/api/modules/category'
 import { getToken } from '@/utils/auth'
 
 const router = useRouter()
@@ -302,30 +302,19 @@ const formRules = {
 // 获取一级分类列表
 async function fetchCategoryList() {
   try {
-    const { data } = await getCategoryList({ pid: 0, status: 1 })
+    const { data } = await getTopCategories()
     categoryList.value = data || []
   } catch (error) {
     console.error('获取分类失败:', error)
   }
 }
 
-// 获取商品单位列表
 async function fetchUnitList() {
   try {
-    // 从goods API获取单位列表
-    const { data } = await fetch('/api/v1/goods/units').then(res => res.json())
+    const { data } = await getGoodsUnits()
     unitList.value = data || []
   } catch (error) {
-    // 默认单位列表
-    unitList.value = [
-      { id: 1, name: '斤' },
-      { id: 2, name: '公斤' },
-      { id: 3, name: '个' },
-      { id: 4, name: '袋' },
-      { id: 5, name: '盒' },
-      { id: 6, name: '瓶' },
-      { id: 7, name: '包' }
-    ]
+    unitList.value = []
   }
 }
 

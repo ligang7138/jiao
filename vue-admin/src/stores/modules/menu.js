@@ -26,6 +26,7 @@ export const useMenuStore = defineStore('menu', {
           id: group.id,
           module: group.module,
           children: (group.menu || [])
+            .filter((item) => !item.path?.startsWith('jiagewang.'))
             .map((item) => {
               const menuItem = {
                 id: item.id,

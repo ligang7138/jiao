@@ -55,7 +55,7 @@ class SchoolController extends Controller
         } catch (\InvalidArgumentException $e) {
             return ResponseHelper::error(ErrorCode::VALIDATION_ERROR, $e->getMessage());
         } catch (\Throwable $e) {
-            return ResponseHelper::error(40009, '添加失败');
+            return ResponseHelper::error(40009, '添加失败: ' . $e->getMessage());
         }
     }
 

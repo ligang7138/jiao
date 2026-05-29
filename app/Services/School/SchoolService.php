@@ -152,7 +152,11 @@ class SchoolService
         }
 
         return DB::transaction(function () use ($schoolName, $schoolDistrict, $schoolPeriod, $status) {
+            // 旧库 school 表 username/password/salt 为 NOT NULL，新增学校时尚未创建登录账号
             $school = School::create([
+                'username' => '',
+                'password' => '',
+                'salt' => '',
                 'school_name' => $schoolName,
                 'school_district' => $schoolDistrict,
                 'school_period' => $schoolPeriod,

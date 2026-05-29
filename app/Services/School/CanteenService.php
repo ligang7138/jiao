@@ -153,7 +153,7 @@ class CanteenService
         $this->validatePayload($payload, true);
 
         return DB::transaction(function () use ($payload) {
-            $canteen = Canteen::create(array_merge($payload, [
+            $canteen = Canteen::create(array_merge($payload, $this->legacyCreateDefaults(), [
                 'add_user' => auth()->user()->name ?? '',
                 'add_time' => time(),
             ]));
@@ -175,9 +175,7 @@ class CanteenService
         $payload = $this->normalizePayload(array_merge($canteen->toArray(), $data));
         $this->validatePayload($payload, false, $id);
 
-        $canteen->update(array_merge($payload, [
-            'update_time' => time(),
-        ]));
+        $canteen->update($this->withUpdateTime($payload));
 
         return $canteen->fresh(['school']);
     }
@@ -193,10 +191,9 @@ class CanteenService
             throw new \InvalidArgumentException('记录不存在');
         }
 
-        $canteen->update([
+        $canteen->update($this->withUpdateTime([
             'status' => $status,
-            'update_time' => time(),
-        ]);
+        ]));
 
         return $canteen->fresh(['school']);
     }
@@ -309,6 +306,40 @@ class CanteenService
         if ($isCreate && Canteen::where('name', $payload['name'])->exists()) {
             throw new \InvalidArgumentException('食堂名称已存在，添加失败');
         }
+    }
+
+    /**
+     * 旧库 school_canteen 部分 NOT NULL 字段无默认值，新增时需补齐空串。
+     *
+     * @return array<string, mixed>
+     */
+    private function legacyCreateDefaults(): array
+    {
+        return [
+            'username' => '',
+            'password' => '',
+            'linkman' => '',
+            'mobile' => '',
+            'address' => '',
+            'code' => '',
+            'remark' => '',
+            'canteen_sn' => '',
+        ];
+    }
+
+    /**
+     * 旧库 school_canteen 表可能不存在 update_time 字段。
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function withUpdateTime(array $payload): array
+    {
+        if (Schema::hasColumn('school_canteen', 'update_time')) {
+            $payload['update_time'] = time();
+        }
+
+        return $payload;
     }
 
     private function formatDetail(Canteen $canteen): array

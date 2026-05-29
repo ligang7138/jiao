@@ -27,8 +27,13 @@ class Category extends Model
         'logo',
         'float_rate_cap',
         'allow_report_after_send',
+        'allow_supplement_report_after_send',
         'sort',
         'status',
+        'add_user',
+        'add_time',
+        'update_user',
+        'update_time',
     ];
 
     protected $casts = [

@@ -250,6 +250,9 @@
     <!-- 下架弹窗 - 与旧系统下架逻辑完全一致 -->
     <el-dialog v-model="downDialogVisible" title="商品下架" width="500px">
       <el-form :model="downForm" label-width="100px">
+        <el-form-item label="下架原因" required>
+          <el-input v-model="downForm.reason" type="textarea" :rows="3" placeholder="请输入下架原因" />
+        </el-form-item>
         <el-form-item label="下架类型">
           <el-radio-group v-model="downForm.down_type">
             <el-radio :value="1">立即下架</el-radio>
@@ -268,24 +271,26 @@
       <el-table v-loading="statusLogLoading" :data="statusLogData" border stripe>
         <el-table-column label="操作类型" width="100" align="center">
           <template #default="{ row }">
-            {{ row.operate_type === 1 ? '上架' : '下架' }}
+            {{ row.operate_type_text || (row.operate_type === 1 ? '上架' : '下架') }}
           </template>
         </el-table-column>
         <el-table-column label="原状态" width="100" align="center">
           <template #default="{ row }">
-            {{ row.old_status === 1 ? '上架' : '下架' }}
+            {{ row.old_status_text || (row.old_status === 1 ? '上架' : '下架') }}
           </template>
         </el-table-column>
         <el-table-column label="新状态" width="100" align="center">
           <template #default="{ row }">
-            {{ row.new_status === 1 ? '上架' : '下架' }}
+            {{ row.new_status_text || (row.new_status === 1 ? '上架' : '下架') }}
           </template>
         </el-table-column>
         <el-table-column prop="reason" label="原因" min-width="200" />
-        <el-table-column prop="operate_user" label="操作人" width="120" align="center" />
+        <el-table-column label="操作人" width="120" align="center">
+          <template #default="{ row }">{{ row.operator || row.operate_user }}</template>
+        </el-table-column>
         <el-table-column label="操作时间" width="180" align="center">
           <template #default="{ row }">
-            {{ formatTime(row.operate_time) }}
+            {{ row.operate_time_text || formatTime(row.operate_time) }}
           </template>
         </el-table-column>
       </el-table>
@@ -310,9 +315,11 @@ import {
   getGoodsList,
   goodsUp,
   goodsDown,
-  getGoodsStatusLog
+  getGoodsStatusLog,
+  exportGoods,
 } from '@/api/modules/goods'
-import { getCategoryList, getSubCategories } from '@/api/modules/category'
+import { getTopCategories, getSubCategories } from '@/api/modules/category'
+import { downloadBlob } from '@/utils/index'
 
 const router = useRouter()
 
@@ -354,7 +361,8 @@ const downDialogVisible = ref(false)
 const downLoading = ref(false)
 const currentDownGoods = ref(null)
 const downForm = reactive({
-  down_type: 1
+  down_type: 1,
+  reason: '',
 })
 
 // 上下架记录弹窗
@@ -396,7 +404,7 @@ function formatTime(timestamp, format = 'yy-MM-dd HH:mm') {
 // 获取一级分类列表
 async function fetchCategoryList() {
   try {
-    const { data } = await getCategoryList({ pid: 0 })
+    const { data } = await getTopCategories()
     categoryList.value = data || []
   } catch (error) {
     console.error('获取分类失败:', error)
@@ -448,12 +456,11 @@ async function fetchData() {
     tableData.value = data.list || []
     pagination.total = data.total || 0
 
-    // 计算限高价 - 与旧系统逻辑一致
-    tableData.value.forEach(item => {
-      const floatRateCap = categoryList.value.find(c => c.id === item.cate_id)?.float_rate_cap || 0.13
+    tableData.value.forEach((item) => {
+      const floatRateCap = categoryList.value.find((c) => c.id === item.cate_id)?.float_rate_cap || 0.13
       if (floatRateCap) {
-        const basePrice = item.goods_channel === 1 ? item.white_price : item.price
-        item.limit_price = Math.round(basePrice * floatRateCap + basePrice, 2)
+        const basePrice = item.goods_channel === 1 ? (item.white_price || 0) : (item.price || 0)
+        item.limit_price = Number((basePrice * floatRateCap + basePrice).toFixed(2))
       } else {
         item.limit_price = 0
       }
@@ -476,9 +483,16 @@ function handleRefresh() {
   fetchData()
 }
 
-// 导出 - 与旧系统导出逻辑一致
-function handleExport() {
-  ElMessage.info('导出功能开发中')
+// 导出
+async function handleExport() {
+  try {
+    const params = { ...searchForm }
+    const blob = await exportGoods(params)
+    downloadBlob(blob, `goods_export_${Date.now()}.xlsx`)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    ElMessage.error(error.message || '导出失败')
+  }
 }
 
 // 导入
@@ -526,17 +540,22 @@ async function handleGoodsUp(row) {
 function handleGoodsDown(row) {
   currentDownGoods.value = row
   downForm.down_type = 1
+  downForm.reason = ''
   downDialogVisible.value = true
 }
 
-// 确认下架 - 与旧系统下架逻辑一致
 async function confirmGoodsDown() {
   if (!currentDownGoods.value) return
+  if (!downForm.reason.trim()) {
+    ElMessage.warning('请输入下架原因')
+    return
+  }
 
   downLoading.value = true
   try {
     await goodsDown(currentDownGoods.value.id, {
-      down_type: downForm.down_type
+      down_type: downForm.down_type,
+      reason: downForm.reason.trim(),
     })
     ElMessage.success('下架成功')
     downDialogVisible.value = false

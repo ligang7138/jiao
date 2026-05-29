@@ -59,6 +59,13 @@ export const legacyRouteMap = [
     permission: 'category.index',
   },
   {
+    legacyPage: '/admin/goods/unit.php',
+    legacyDo: 'goods.unit',
+    api: { method: 'GET', uri: '/api/v1/admin/goods-units' },
+    route: '/goods/unit',
+    permission: 'goods.unit',
+  },
+  {
     legacyPage: '/admin/user/index.php',
     legacyDo: 'user.index',
     api: { method: 'GET', uri: '/api/v1/admin/users' },
@@ -99,13 +106,6 @@ export const legacyRouteMap = [
     api: { method: 'GET', uri: '/api/v1/backorder' },
     route: '/backorder/list',
     permission: 'backorder.index',
-  },
-  {
-    legacyPage: '/admin/jiagewang/index.php',
-    legacyDo: 'jiagewang.index',
-    api: { method: 'GET', uri: '/api/v1/jiagewang' },
-    route: '/jiagewang/list',
-    permission: 'jiagewang.index',
   },
   {
     legacyPage: '/admin/receivable/order.php',

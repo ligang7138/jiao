@@ -23,6 +23,9 @@ class School extends Model
     }
 
     protected $fillable = [
+        'username',
+        'password',
+        'salt',
         'school_sn',
         'school_name',
         'school_district',
